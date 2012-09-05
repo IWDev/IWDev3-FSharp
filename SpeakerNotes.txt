@@ -1,0 +1,219 @@
+========================
+Alg types
+========================
+
+Records =  constructor is similar to type definition.
+
+Delete lines to show new code!...
+
+Change font size.
+Note the FSI window - set up SendToInteractive as alt-; Resharper?
+Pin the FSI window
+
+
+Assignment - oops "=" is not the assignment operation.
+
+instant equality, comparison
+
+Unions - not very exciting -- like enums... BUT can be used for complex types as well.
+
+exhaustive pattern matching!
+Fix it to make the error go away
+
+Good practice to write "default" cases in switch statements? 
+Note that there is no need for a "default" case -- it can never happen!
+
+exhaustive pattern matching to handle requirements changes
+Change contact type to have Twitter
+
+Fun with sorting -- seems trivial but saves a lot of code!
+
+========================
+Nulls and Option
+========================
+
+All classes can be null in C# or Java or Python
+In F# not so -- you have to assign something at creation type
+Nulls are called the billion dollar mistake
+
+
+Compare C# version of ProcessContact with F# version.
+
+
+sometimes to do want to signal "something vs nothing" -- how to do this safely
+leads us on to Option types - 
+
+Nullable<ContactInfo> only works for primitive types.
+
+========================
+Example 1
+========================
+
+// How many bugs are there in this code?
+
+Issue 
+* First problem: Email can be changed without affecting IsVerified or IsValid 
+* Second: email could have have IsVerified true and IsValid false.
+
+// throw away the input when setting IsVerified -- is that right?
+
+// How many bugs are there in this code now?
+// What tests would you have to write to ensure correctness? 
+// What is the code complexity?
+
+Finally, look at logic for sending emails in C#
+        // Is this code order dependent?
+        // What happens if a new state is added?
+
+
+
+F# version -- How many bugs are there in THIS code?
+Not as many, because no setters!
+// immutable, so no possible bugs in the set methods!
+
+// but how to meet other requirements?
+// union types to the rescue!
+
+processing a list -- very common in general to handle different cases
+
+for sending -- 
+// Is this code order dependent?
+// What happens if a new state is added?
+
+
+========================
+Example 2
+========================
+
+Problem 1 : updating address is not transactional 
+If I update the postcode, should I call out to the third party service? When am I done?
+
+Version 2
+Solution - create classes to group values together.
+
+Version 3
+But this hasn't solved the problem -- make them immutable.
+
+The null issue can only be solved by runtime errors
+What abot "Must have a email or address or both, but not neither."
+
+
+case processing 
+
+* as before, a tangle of if statements
+* could easily forget a case
+* what happens if requirements change
+* also what happens in the "gap" case?  In theory it shouldn't happen, so exception? 
+But how would you know WHY it happened?  
+Better if can never happen in the first place! Then you don't have to hurt your brain.
+
+
+
+lets look at F# 
+
+Version 1 has separate type for each set of values. But doesn't meet the requirements.
+
+union types to the rescue again!
+Version 2 
+
+
+========================
+Shopping cart
+========================
+
+* One of the requirements is not even met. Can you see which one?
+* It has a major design flaw, and a number of minor ones. Can you see what they are?
+
+So many problems in such a short piece of code!
+
+
+Next, show state diagram -- 
+  Empty only has an Add operation
+  Active only has an Add,Remove,Pay operation
+  Paid has no operations
+
+How can you represent this in code so that you CANNOT call Remove when the state is Empty
+Not a runtime error but a COMPILER error. The method literally doesnt exist.
+
+/*
+
+Analysis of the original C# code
+
+
+
+Requirement not met: 
+ * An empty cart can still be paid for.
+
+Major design flaw: 
+ * Overloading the payment amount to be a signal for IsPaidFor means that a zero paid amount can never lock down the cart. 
+ * Are you sure it would never be possible to have a cart which is paid for but free of charge? 
+ * The requirements are not clear, but what if this did become a requirement later? How much code would have to be changed?
+
+Minor design flaws: 
+ * What should happen when trying to remove an item from an empty cart? 
+ * And what should happen when attempting to pay for a cart that is already paid for? 
+ * Should we throw exceptions in these cases, or just silently ignore them? 
+ * And does it make sense that a client should be able to enumerate the items in an empty cart? 
+ * And this is not thread safe as designed; so what happens if a secondary thread adds an item to the cart while a payment is being made on the main thread?
+
+That’s quite a lot of things to worry about.
+
+The nice thing about the F# design is none of these problems can even exist! 
+So designing this way not only ensures correct code, but it also really reduces the cognitive effort to ensure that the design is bullet proof in the first place.
+
+
+*/ 
+
+
+//And we can create some cart level helper methods as well. At the cart level, we have to explicitly handle each possibility for the internal state with a match..with expression.
+
+
+
+testing
+
+//We now have an active cart with one item in it. 
+Note that “cartA” is a completely different object from “emptyCart” and is in a different state.
+//
+//Let’s keep going:
+
+
+//So far, so good. Again, all these are distinct objects in different states,
+//
+//Let’s test the requirement that you cannot remove items from an empty cart:
+
+
+//An error — just what we want!
+//
+//Now say that we want to pay for a cart. We didn't create this method at the Cart level, because we didn't want to tell the client how to handle all the cases. This method only exists for the Active state, so the client will have to explicitly handle each case and only call the Pay method when an Active state is matched.
+//
+//First we'll try to pay for cartA.
+
+
+
+
+//The result was a paid cart.
+//
+//Now we'll try to pay for the emptyCart.
+
+
+
+
+//Nothing happens. The cart is empty, so the Active branch is not called. We might want to raise an error or log a message in the other branches, but no matter what we do we cannot accidentally call the Pay method on an empty cart, because that state does not have a method to call!
+//
+//The same thing happens if we accidentally try to pay for a cart that is already paid.
+
+
+
+//You might argue that the client code above might not be representative of code in the real world — it is well-behaved and already dealing with the requirements.
+//
+//So what happens if we have badly written or malicious client code that tries to force payment:
+
+
+
+C# version of union -- can't use superclass -- would it have a Pay method? if so what would it for the empty cart
+
+
+General comments: 
+The new C# code is cleaner and less buggy.
+Many fewer IF statements with a state machine!  
+Much easier to get full test coverage.
